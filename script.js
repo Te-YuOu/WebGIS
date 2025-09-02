@@ -1,4 +1,5 @@
-const map = L.map("map").setView([23.5, 121], 7);
+// 使用 Canvas 提升渲染效能
+const map = L.map("map", { preferCanvas: true }).setView([23.5, 121], 7);
 
 // 加入 OSM 底圖
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -23,6 +24,7 @@ const rrLayers = {};
 const overlayMaps = {};
 const layerControl = L.control.layers({}, {}, { collapsed: false }).addTo(map);
 let firstLayerLoaded = false;
+let currentSeasonLayer = null;
 
 function loadSeason(season) {
   fetch(`data/RR_map_${season}.tif`)
@@ -43,6 +45,7 @@ function loadSeason(season) {
 
       if (!firstLayerLoaded) {
         layer.addTo(map);
+        currentSeasonLayer = layer;
         map.fitBounds(layer.getBounds());
         firstLayerLoaded = true;
       }
@@ -52,3 +55,18 @@ function loadSeason(season) {
 
 // 載入所有季節
 seasons.forEach(loadSeason);
+
+// 讓季節圖層「互斥」：啟用一個時，自動關閉其他，以避免堆疊造成卡頓
+map.on("overlayadd", (e) => {
+  const added = e.layer;
+  // 僅在是季節圖層時處理
+  const isSeasonLayer = Object.values(rrLayers).includes(added);
+  if (!isSeasonLayer) return;
+
+  Object.values(rrLayers).forEach((layer) => {
+    if (layer !== added && map.hasLayer(layer)) {
+      map.removeLayer(layer);
+    }
+  });
+  currentSeasonLayer = added;
+});
