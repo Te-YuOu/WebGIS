@@ -60,6 +60,17 @@ function showSeason(season) {
   if (!layer) return; // 尚未載入完成
   // 先清空群組，確保舊的 GeoTIFF canvas 被移除
   rasterGroup.clearLayers();
+  // 防禦性清理：移除 overlayPane 中可能遺留的 canvas
+  try {
+    const overlayPane = map.getPanes && map.getPanes().overlayPane;
+    if (overlayPane) {
+      Array.from(overlayPane.querySelectorAll('canvas')).forEach((c) => {
+        if (c && c.parentNode === overlayPane) overlayPane.removeChild(c);
+      });
+    }
+  } catch (e) {
+    // ignore
+  }
   rasterGroup.addLayer(layer);
   currentSeasonLayer = layer;
 }
