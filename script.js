@@ -1,58 +1,48 @@
-
-// 初始化地圖
-const map = L.map('map').setView([23.5, 121], 7);
+const map = L.map("map").setView([23.5, 121], 7);
 
 // OSM 底圖
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© OpenStreetMap contributors'
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: "© OpenStreetMap contributors",
 }).addTo(map);
 
-// 建立四季的 RR GeoTIFF 圖層
-const rrLayerDJF = new L.LeafletGeotiff('./data/RR_map_DJF.tif', {
-  renderer: new L.LeafletGeotiff.Plotty({
-    displayMin: 0.0,
-    displayMax: 0.6,
-    colorScale: 'viridis',
-  }),
-  name: "DJF RR"
+// 建立空物件儲存圖層
+const rrLayers = {};
+const seasons = ["DJF", "MAM", "JJA", "SON"];
+const overlayMaps = {};
+
+// 遞迴載入四季 GeoTIFF
+seasons.forEach(season => {
+  fetch(`data/RR_map_${season}.tif`)
+    .then(res => res.arrayBuffer())
+    .then(buffer => parseGeoraster(buffer))
+    .then(georaster => {
+      const layer = new GeoRasterLayer({
+        georaster,
+        opacity: 0.7,
+        pixelValuesToColorFn: (val) => {
+          if (val[0] === null) return null;
+          if (val[0] > 0.5) return "#800026";
+          if (val[0] > 0.4) return "#BD0026";
+          if (val[0] > 0.3) return "#E31A1C";
+          if (val[0] > 0.2) return "#FC4E2A";
+          if (val[0] > 0.1) return "#FD8D3C";
+          if (val[0] > 0.05) return "#FEB24C";
+          if (val[0] > 0.01) return "#FED976";
+          return "#FFEDA0";
+        },
+        resolution: 256
+      });
+
+      rrLayers[season] = layer;
+      overlayMaps[season] = layer;
+
+      // 預設加載 DJF
+      if (season === "DJF") {
+        layer.addTo(map);
+        map.fitBounds(layer.getBounds());
+      }
+
+      // 更新圖層切換控制
+      L.control.layers({}, overlayMaps, { collapsed: false }).addTo(map);
+    });
 });
-
-const rrLayerMAM = new L.LeafletGeotiff('./data/RR_map_MAM.tif', {
-  renderer: new L.LeafletGeotiff.Plotty({
-    displayMin: 0.0,
-    displayMax: 0.6,
-    colorScale: 'viridis',
-  }),
-  name: "MAM RR"
-});
-
-const rrLayerJJA = new L.LeafletGeotiff('./data/RR_map_JJA.tif', {
-  renderer: new L.LeafletGeotiff.Plotty({
-    displayMin: 0.0,
-    displayMax: 0.6,
-    colorScale: 'viridis',
-  }),
-  name: "JJA RR"
-});
-
-const rrLayerSON = new L.LeafletGeotiff('./data/RR_map_SON.tif', {
-  renderer: new L.LeafletGeotiff.Plotty({
-    displayMin: 0.0,
-    displayMax: 0.6,
-    colorScale: 'viridis',
-  }),
-  name: "SON RR"
-});
-
-// 加入圖層切換控制器
-const overlayMaps = {
-  "DJF": rrLayerDJF,
-  "MAM": rrLayerMAM,
-  "JJA": rrLayerJJA,
-  "SON": rrLayerSON,
-};
-
-L.control.layers({}, overlayMaps, { collapsed: false }).addTo(map);
-
-// 預設顯示 DJF 圖層
-rrLayerDJF.addTo(map);
