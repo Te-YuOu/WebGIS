@@ -1,14 +1,13 @@
-// 初始化地圖
 const map = L.map("map").setView([23.5, 121], 7);
 
-// 加入 OSM 底圖
+// OSM 底圖
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   attribution: "© OpenStreetMap contributors",
 }).addTo(map);
 
-// 色階函數（你可以依實際數值調整）
+// 自訂色階映射
 function getColor(val) {
-  if (val === null || val === undefined || isNaN(val)) return null;
+  if (val === null || val === undefined) return null;
   if (val > 0.5) return "#800026";
   if (val > 0.4) return "#BD0026";
   if (val > 0.3) return "#E31A1C";
@@ -19,39 +18,47 @@ function getColor(val) {
   return "#FFEDA0";
 }
 
-// 要載入的季節清單
+// 四季設定
 const seasons = ["DJF", "MAM", "JJA", "SON"];
-
-// 圖層對應字典
+const rrLayers = {};  // 已載入的圖層
 const overlayMaps = {};
-let layerControlAdded = false;
 
-// 每一季都載入對應的 GeoTIFF
-seasons.forEach((season) => {
+// 建立控制器但不加入任何圖層
+const layerControl = L.control.layers({}, {}, { collapsed: false }).addTo(map);
+
+// 載入圖層函數
+function loadRRLayer(season) {
+  if (rrLayers[season]) {
+    rrLayers[season].addTo(map);
+    return;
+  }
+
   fetch(`data/RR_map_${season}.tif`)
-    .then((response) => response.arrayBuffer())
-    .then((arrayBuffer) => parseGeoraster(arrayBuffer))
-    .then((georaster) => {
+    .then(res => res.arrayBuffer())
+    .then(buffer => parseGeoraster(buffer))
+    .then(georaster => {
       const layer = new GeoRasterLayer({
         georaster,
         opacity: 0.7,
-        pixelValuesToColorFn: (values) => getColor(values[0]),
-        resolution: 256,
+        pixelValuesToColorFn: values => getColor(values[0]),
+        resolution: 128,  // 降低解析度以加速顯示
       });
 
+      rrLayers[season] = layer;
       overlayMaps[season] = layer;
+      layer.addTo(map);
+
+      // 更新控制器（只更新一次）
+      layerControl.addOverlay(layer, season);
 
       if (season === "DJF") {
-        layer.addTo(map);
         map.fitBounds(layer.getBounds());
       }
-
-      if (Object.keys(overlayMaps).length === seasons.length && !layerControlAdded) {
-        L.control.layers({}, overlayMaps, { collapsed: false }).addTo(map);
-        layerControlAdded = true;
-      }
     })
-    .catch((error) => {
-      console.error(`⚠️ 載入 ${season} 失敗:`, error);
+    .catch(err => {
+      console.error(`載入 ${season} 失敗:`, err);
     });
-});
+}
+
+// 預設載入 DJF
+loadRRLayer("DJF");
