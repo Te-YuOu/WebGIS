@@ -1,0 +1,27 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Alishan",
+        "RR": 0.42
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [120.805, 23.508]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Chiayi",
+        "RR": 0.21
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [120.44, 23.48]
+      }
+    }
+  ]
+}
