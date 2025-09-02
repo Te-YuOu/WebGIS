@@ -21,8 +21,7 @@ function getColor(val) {
 
 const seasons = ["DJF", "MAM", "JJA", "SON"];
 const rrLayers = {};
-const overlayMaps = {};
-const layerControl = L.control.layers({}, {}, { collapsed: false }).addTo(map);
+// 將季節圖層改由自訂控制元件管理（不使用 LayersControl 以避免重疊殘留）
 let firstLayerLoaded = false;
 let currentSeasonLayer = null;
 
@@ -39,9 +38,6 @@ function loadSeason(season) {
       });
 
       rrLayers[season] = layer;
-      overlayMaps[season] = layer;
-
-      layerControl.addOverlay(layer, season);
 
       if (!firstLayerLoaded) {
         layer.addTo(map);
@@ -56,17 +52,41 @@ function loadSeason(season) {
 // 載入所有季節
 seasons.forEach(loadSeason);
 
-// 讓季節圖層「互斥」：啟用一個時，自動關閉其他，以避免堆疊造成卡頓
-map.on("overlayadd", (e) => {
-  const added = e.layer;
-  // 僅在是季節圖層時處理
-  const isSeasonLayer = Object.values(rrLayers).includes(added);
-  if (!isSeasonLayer) return;
+// 提供顯示指定季節的函式，先移除舊圖層再加入新圖層，避免殘留
+function showSeason(season) {
+  const layer = rrLayers[season];
+  if (!layer) return; // 尚未載入完成
+  if (currentSeasonLayer && map.hasLayer(currentSeasonLayer)) {
+    map.removeLayer(currentSeasonLayer);
+  }
+  layer.addTo(map);
+  currentSeasonLayer = layer;
+}
 
-  Object.values(rrLayers).forEach((layer) => {
-    if (layer !== added && map.hasLayer(layer)) {
-      map.removeLayer(layer);
-    }
-  });
-  currentSeasonLayer = added;
+// 自訂「季節切換」控制（使用單選 radio，確保互斥）
+const SeasonControl = L.Control.extend({
+  options: { position: "topright" },
+  onAdd: function () {
+    const div = L.DomUtil.create("div", "leaflet-bar");
+    div.style.background = "white";
+    div.style.padding = "6px 8px";
+    div.style.lineHeight = "1.2";
+    div.innerHTML = "<strong>Season</strong><br>";
+    seasons.forEach((s, i) => {
+      const checked = i === 0 ? "checked" : "";
+      div.innerHTML += `
+        <label style="display:block;margin:2px 0;">
+          <input type="radio" name="season" value="${s}" ${checked}/> ${s}
+        </label>`;
+    });
+    L.DomEvent.disableClickPropagation(div);
+    div.addEventListener("change", (e) => {
+      if (e.target && e.target.name === "season") {
+        showSeason(e.target.value);
+      }
+    });
+    return div;
+  },
 });
+
+new SeasonControl().addTo(map);
