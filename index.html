@@ -19,7 +19,13 @@
 </head>
 <body>
   <div id="map"></div>
+
+  <!-- ✅ loading 提示文字 -->
+  <div id="loading" style="position: absolute; top: 10px; left: 10px; background: white; padding: 6px; z-index: 9999;">
+    載入中...
+  </div>
+
+  <!-- ✅ 將 script 放到底部，確保 DOM 都載入完 -->
   <script src="script.js"></script>
-  <div id="loading" style="position: absolute; top: 10px; left: 10px; background: white; padding: 6px; z-index: 9999;">載入中...</div>
 </body>
 </html>
