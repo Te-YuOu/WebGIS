@@ -21,6 +21,8 @@ function getColor(val) {
 
 const seasons = ["DJF", "MAM", "JJA", "SON"];
 const rrLayers = {};
+// 使用群組統一管理 GeoTIFF 圖層，切換時先清空群組，避免殘影
+const rasterGroup = L.layerGroup().addTo(map);
 // 將季節圖層改由自訂控制元件管理（不使用 LayersControl 以避免重疊殘留）
 let firstLayerLoaded = false;
 let currentSeasonLayer = null;
@@ -40,7 +42,7 @@ function loadSeason(season) {
       rrLayers[season] = layer;
 
       if (!firstLayerLoaded) {
-        layer.addTo(map);
+        rasterGroup.addLayer(layer);
         currentSeasonLayer = layer;
         map.fitBounds(layer.getBounds());
         firstLayerLoaded = true;
@@ -56,10 +58,9 @@ seasons.forEach(loadSeason);
 function showSeason(season) {
   const layer = rrLayers[season];
   if (!layer) return; // 尚未載入完成
-  if (currentSeasonLayer && map.hasLayer(currentSeasonLayer)) {
-    map.removeLayer(currentSeasonLayer);
-  }
-  layer.addTo(map);
+  // 先清空群組，確保舊的 GeoTIFF canvas 被移除
+  rasterGroup.clearLayers();
+  rasterGroup.addLayer(layer);
   currentSeasonLayer = layer;
 }
 
